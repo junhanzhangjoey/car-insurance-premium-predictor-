@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Traffic Risk Score</title>
+</head>
+<body>
+    <h1>Traffic Risk Score Checker</h1>
+
+    <form id="riskForm">
+        <label for="state">State:</label>
+        <input type="text" id="state" name="state" value="California"><br><br>
+
+        <label for="county">County:</label>
+        <input type="text" id="county" name="county"><br><br>
+
+        <button type="submit">Get Risk Score</button>
+    </form>
+
+    <h2 id="result"></h2>
+
+    <script>
+        document.getElementById('riskForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const state = document.getElementById('state').value;
+            const county = document.getElementById('county').value;
+
+            const response = await fetch('/get-risk-score', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ state, county })
+            });
+
+            const data = await response.json();
+            if (data.error) {
+                document.getElementById('result').innerText = "No data found.";
+            } else {
+                document.getElementById('result').innerText = `County: ${data.county}, Risk Score: ${data.risk_score.toFixed(2)}`;
+            }
+        });
+    </script>
+</body>
+</html>
