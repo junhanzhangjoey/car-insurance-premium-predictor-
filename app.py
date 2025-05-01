@@ -88,7 +88,8 @@ SELECT s1.COUNTY, (s1.risk_score+s2.risk_score)/2 AS region_risk_score
 FROM score1 s1
 JOIN score2 s2
 on s1.COUNTY=s2.COUNTY
-WHERE s1.COUNTY=@county
+--WHERE s1.COUNTY=@county
+WHERE LOWER(REGEXP_REPLACE(s1.COUNTY, r'\\s*\\(.*\\)', '')) = LOWER(@county)
 """
 @app.route('/')
 def home():
