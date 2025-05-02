@@ -7,7 +7,7 @@ WITH drug_fatalities AS (
     ON p.L_YEAR = d.L_YEAR AND p.ST_CASE = d.ST_CASE 
   JOIN `bigquery-public-data.dataflix_traffic_safety.accident` a
     ON p.L_YEAR = a.L_YEAR AND p.ST_CASE = a.ST_CASE 
-  WHERE p.PER_TYP = "Driver of a Motor Vehicle in Transport" --AND p.STATE = "California"
+  WHERE p.PER_TYP = "Driver of a Motor Vehicle in Transport" AND p.STATE = "California" -- @state
     AND d.DRUGRES IN (
       "Depressant", 
       "Other Drug", 
@@ -24,14 +24,14 @@ WITH drug_fatalities AS (
     )
   GROUP BY d.DRUGRES
 )
+
 SELECT
-  fatality_ratio --, DRUGRES
+  fatality_ratio 
 FROM (
   SELECT
     DRUGRES,
     ROUND(total_fatalities / SUM(total_fatalities) OVER (), 4) AS fatality_ratio
   FROM drug_fatalities
 )
-WHERE DRUGRES = "Other Drug"
---ORDER BY fatality_ratio DESC
+WHERE DRUGRES = "Other Drug" -- @drug
 ;

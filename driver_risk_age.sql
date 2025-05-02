@@ -16,9 +16,9 @@ age_group_fatalities AS (
     ON p.ST_CASE = a.ST_CASE AND p.L_YEAR = a.L_YEAR 
   WHERE p.PER_TYP = "Driver of a Motor Vehicle in Transport"
     AND p.AGE BETWEEN 5 AND 94
-    AND p.STATE = 'California'
+    AND p.STATE = 'California' --@state
   GROUP BY age_group
 )
 SELECT ROUND(agf.total_fatalities / tf.overall_total, 4) AS fatality_ratio
 FROM age_group_fatalities agf, total_fatalities tf
-WHERE agf.age_group = CONCAT(FLOOR(34 / 5) * 5, '-', FLOOR(34 / 5) * 5 + 4);
+WHERE agf.age_group = CONCAT(FLOOR(34 / 5) * 5, '-', FLOOR(34 / 5) * 5 + 4); -- replace 34 with @age.
