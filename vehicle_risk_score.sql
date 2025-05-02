@@ -95,9 +95,9 @@ SELECT
   speed_risk,
   raw_vehicle_risk_score,
   ROUND(
-    (raw_vehicle_risk_score - 3)  -- shift minimum (3) to zero
-    / (21 - 3)                     -- divide by range (18)
-    * 100,                         -- scale up to 100
+    (raw_vehicle_risk_score - 3)
+    / (21 - 3)
+    * 100,
   2) AS vehicle_risk_score
 FROM
   risk_components;
