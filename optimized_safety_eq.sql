@@ -1,51 +1,65 @@
-WITH risk_factors AS (
-  SELECT 
-    p.STATE, 
-    p.ST_CASE, 
-    p.VEH_NO,
-    p.AIR_BAG,
-    p.REST_USE,
+-- 1. declare your three inputs
+DECLARE input_make   STRING DEFAULT 'Chevrolet';
+DECLARE input_model  STRING DEFAULT 'Camaro';
+DECLARE input_year   INT64  DEFAULT 1974;
+
+WITH
+vehicle_stats_all AS (
+  SELECT
+    v.MAKE,
+    v.MODEL,
     v.MOD_YEAR,
-
-    CASE 
-      WHEN SAFE_CAST(p.AIR_BAG AS INT64) = 1 THEN 300
-      WHEN SAFE_CAST(p.AIR_BAG AS INT64) = 2 THEN 300
-      WHEN SAFE_CAST(p.AIR_BAG AS INT64) = 3 THEN 400
-      WHEN SAFE_CAST(p.AIR_BAG AS INT64) IN (7, 8) THEN 200
-      ELSE 0
-    END AS airbag_discount,
-    
-    CASE 
-      WHEN SAFE_CAST(p.REST_USE AS INT64) IN (1, 2, 3) THEN 250
-      ELSE 0
-    END AS restraint_discount,
-    
-    CASE 
-      WHEN v.MOD_YEAR IS NULL THEN 0
-      WHEN SAFE_CAST(v.MOD_YEAR AS INT64) >= 2018 THEN 350
-      WHEN SAFE_CAST(v.MOD_YEAR AS INT64) >= 2010 THEN 200
-      WHEN SAFE_CAST(v.MOD_YEAR AS INT64) >= 2000 THEN 100
-      ELSE 0
-    END AS modern_safety_discount
-  FROM `bigquery-public-data.dataflix_traffic_safety.person` p
-  JOIN `bigquery-public-data.dataflix_traffic_safety.vehicle` v 
-    ON p.ST_CASE = v.ST_CASE AND p.VEH_NO = v.VEH_NO
-  WHERE v.MOD_YEAR IS NOT NULL
+    COUNT(*)                                            AS total_crashes,
+    SUM(CASE WHEN v.DEATHS > 0 THEN 1 ELSE 0 END)       AS serious_accidents,
+    AVG(
+      SAFE_CAST(
+        (CASE WHEN s.NMHELMET = 'Yes'   THEN 1 ELSE 0 END) +
+        (CASE WHEN s.NMPROPAD = 'Yes'   THEN 1 ELSE 0 END) +
+        (CASE WHEN s.NMOTHPRO = 'Yes'   THEN 1 ELSE 0 END) +
+        (CASE WHEN s.NMREFCLO = 'Yes'   THEN 1 ELSE 0 END) +
+        (CASE WHEN s.NMLIGHT = 'Yes'    THEN 1 ELSE 0 END) +
+        (CASE WHEN s.NMOTHPRE = 'Yes'   THEN 1 ELSE 0 END)
+      AS FLOAT64)
+    )                                                   AS avg_safety_eq_count
+  FROM
+    `bigquery-public-data.dataflix_traffic_safety.vehicle`  v
+  LEFT JOIN
+    `bigquery-public-data.dataflix_traffic_safety.safetyeq` s
+  USING (STATE, ST_CASE, L_YEAR, VEH_NO)
+  WHERE
+    v.MAKE     = input_make
+    AND v.MODEL = input_model
+    AND v.MOD_YEAR = input_year
+  GROUP BY
+    v.MAKE, v.MODEL, v.MOD_YEAR
+),
+risk_scores_all AS (
+  SELECT
+    MAKE,
+    MODEL,
+    MOD_YEAR,
+    total_crashes,
+    serious_accidents,
+    avg_safety_eq_count,
+    (serious_accidents * 2 + (total_crashes - serious_accidents))     AS raw_risk,
+    (serious_accidents * 2 + (total_crashes - serious_accidents))
+      / (1 + IFNULL(avg_safety_eq_count, 0))                           AS adjusted_risk
+  FROM vehicle_stats_all
+),
+ranked AS (
+  SELECT
+    *,
+    NTILE(100) OVER (ORDER BY adjusted_risk ASC)                       AS risk_percentile
+  FROM risk_scores_all
 )
-
 SELECT
-  STATE,
-  ST_CASE,
-  VEH_NO,
-  AIR_BAG,
-  REST_USE,
+  MAKE,
+  MODEL,
   MOD_YEAR,
-  airbag_discount,
-  restraint_discount,
-  modern_safety_discount,
-  (airbag_discount + restraint_discount + modern_safety_discount) AS raw_safety_discount,
-  
-  ROUND((airbag_discount + restraint_discount + modern_safety_discount) / 1000.0 * 100, 2) AS scaled_safety_discount_0_100
-  
-FROM risk_factors
-LIMIT 1000;
+  total_crashes,
+  serious_accidents,
+  avg_safety_eq_count,
+  adjusted_risk,
+  ROUND(risk_percentile / 100.0 * 30, 2)                               AS estimated_safety_discount_percent
+FROM
+  ranked;
