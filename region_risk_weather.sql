@@ -1,37 +1,42 @@
 WITH
-  bad_rate AS(
+  raw AS (
+    SELECT *
+    FROM `bigquery-public-data.dataflix_traffic_safety.accident`
+    WHERE TRUE
+  ),
+
+  bad_rate AS (
     SELECT 
       COUNTY,
-      COUNTIF(
-        WEATHER IN (
-          'Freezing Rain or Drizzle',
-          'Blowing Snow',
-          'Rain',
-          'Snow',
-          'Fog, Smog, Smoke',
-          'Severe Crosswinds',
-          'Blowing Sand, Soil, Dirt'
-        )
-      )/COUNT(*) AS bad_Weather_rate
-    FROM 
-      `bigquery-public-data.dataflix_traffic_safety.accident`
-    WHERE 
-      STATE = @state
-    GROUP BY 
-      COUNTY
-    ORDER BY bad_Weather_rate DESC
+      SUM(
+        CASE
+          WHEN WEATHER = 'Freezing Rain or Drizzle' THEN 1
+          WHEN WEATHER = 'Blowing Snow' THEN 1
+          WHEN WEATHER = 'Rain' THEN 1
+          WHEN WEATHER = 'Snow' THEN 1
+          WHEN WEATHER = 'Fog, Smog, Smoke' THEN 1
+          WHEN WEATHER = 'Severe Crosswinds' THEN 1
+          WHEN WEATHER = 'Blowing Sand, Soil, Dirt' THEN 1
+          ELSE 0
+        END
+      ) AS bad_count,
+      COUNT(*) AS total_count
+    FROM raw
+    WHERE STATE = @state OR STATE IS NULL 
+    GROUP BY COUNTY
+    ORDER BY total_count DESC
   ),
-  score2 AS(
-    SELECT COUNTY, bad_Weather_rate,(bad_Weather_rate/MAX(bad_Weather_rate) OVER())*100 AS risk_score
+
+  score2 AS (
+    SELECT
+      *,
+      SAFE_DIVIDE(bad_count, total_count) AS bad_weather_rate
     FROM bad_rate
-    ORDER BY risk_score DESC
   )
 
-  SELECT *
-  FROM score2
-  
---   SELECT s1.COUNTY, (s1.risk_score+s2.risk_score)/2 AS region_risk_score
---   FROM score1 s1
---   JOIN score2 s2
---   on s1.COUNTY=s2.COUNTY
---   WHERE TRIM(LOWER(REGEXP_REPLACE(s1.COUNTY, r'\s*\(.*\)', ''))) = TRIM(LOWER(@county))
+SELECT
+  COUNTY,
+  ROUND((bad_weather_rate / MAX(bad_weather_rate) OVER()) * 100, 2) AS risk_score
+FROM score2
+ORDER BY risk_score DESC;
+

@@ -11,10 +11,10 @@ def normalize_county(county):
         return ""
     return re.sub(r'\s*\(.*\)', '', county).strip().lower()
 
-with open("region_risk_severity.sql", "r") as f:
+with open("region_risk_severity_optimized.sql", "r") as f:
     QUERY1 = f.read()
 
-with open("region_risk_weather.sql", "r") as f:
+with open("region_risk_weather_optimized.sql", "r") as f:
     QUERY2 = f.read()
 
 @app.route('/')
