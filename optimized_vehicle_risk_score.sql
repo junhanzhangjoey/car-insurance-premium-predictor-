@@ -1,0 +1,62 @@
+
+SELECT 
+  v.STATE, 
+  v.ST_CASE, 
+  v.VEH_NO,
+  v.MOD_YEAR,
+  v.BODY_TYP,
+  v.ROLLOVER,
+  v.FIRE_EXP,
+  v.PREV_ACC,
+  v.MAKE,
+  v.SPEEDREL,
+  (2025 - SAFE_CAST(v.MOD_YEAR AS INT64)) AS vehicle_age,
+  CASE 
+    WHEN v.MOD_YEAR IS NULL THEN 4
+    WHEN (2025 - SAFE_CAST(v.MOD_YEAR AS INT64)) <= 3 THEN 1
+    WHEN (2025 - SAFE_CAST(v.MOD_YEAR AS INT64)) <= 7 THEN 2
+    WHEN (2025 - SAFE_CAST(v.MOD_YEAR AS INT64)) <= 12 THEN 3
+    ELSE 4
+  END AS vehicle_age_risk,
+  
+  CASE 
+    WHEN SAFE_CAST(v.BODY_TYP AS INT64) IN (1, 2, 3) THEN 1  -- Passenger cars
+    WHEN SAFE_CAST(v.BODY_TYP AS INT64) IN (14, 15, 16) THEN 2  -- SUVs
+    WHEN SAFE_CAST(v.BODY_TYP AS INT64) IN (20, 21, 22) THEN 3  -- Trucks
+    ELSE 2.5
+  END AS body_type_risk,
+  
+  CASE 
+    WHEN SAFE_CAST(v.ROLLOVER AS INT64) = 0 THEN 0
+    WHEN SAFE_CAST(v.ROLLOVER AS INT64) > 0 THEN 3
+    ELSE 1
+  END AS rollover_risk,
+  
+  CASE 
+    WHEN SAFE_CAST(v.FIRE_EXP AS INT64) = 0 THEN 0
+    WHEN SAFE_CAST(v.FIRE_EXP AS INT64) > 0 THEN 2
+    ELSE 0
+  END AS fire_exp_risk,
+  
+  CASE 
+    WHEN SAFE_CAST(v.PREV_ACC AS INT64) = 0 THEN 0
+    WHEN SAFE_CAST(v.PREV_ACC AS INT64) = 1 THEN 1
+    WHEN SAFE_CAST(v.PREV_ACC AS INT64) = 2 THEN 2
+    WHEN SAFE_CAST(v.PREV_ACC AS INT64) >= 3 THEN 3
+    ELSE 0
+  END AS prev_accident_risk,
+  
+  CASE 
+    WHEN SAFE_CAST(v.MAKE AS INT64) IN (12, 20, 7) THEN 1  -- Low risk makes
+    WHEN SAFE_CAST(v.MAKE AS INT64) IN (37, 49, 63) THEN 3  -- Higher risk makes
+    ELSE 2
+  END AS make_risk,
+  
+  CASE 
+    WHEN SAFE_CAST(v.SPEEDREL AS INT64) > 0 THEN 3
+    ELSE 0
+  END AS speed_risk
+
+FROM `bigquery-public-data.dataflix_traffic_safety.vehicle` v
+WHERE v.MOD_YEAR IS NOT NULL
+LIMIT 1000;
