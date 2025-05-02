@@ -1,7 +1,6 @@
--- 1. declare your three inputs
 DECLARE input_make   STRING DEFAULT 'Chevrolet';
 DECLARE input_model  STRING DEFAULT 'Camaro';
-DECLARE input_year   INT64  DEFAULT 1974;
+DECLARE input_year   INT64  DEFAULT 74;
 
 WITH
 vehicle_stats_all AS (
